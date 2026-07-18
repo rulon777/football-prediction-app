@@ -46,18 +46,54 @@ export function MatchList({
   return (
     <div className="flex flex-col gap-6">
       {byWeek.map(([week, weekMatches]) => (
-        <section key={week}>
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-muted-foreground">
-            <CalendarDays className="h-4 w-4" /> Jornada {week}
-          </h2>
-          <div className="flex flex-col gap-3">
-            {weekMatches.map((m) => (
-              <MatchCard key={m.id} roomId={roomId} match={m} userId={userId} />
-            ))}
-          </div>
-        </section>
+        <WeekSection
+          key={week}
+          week={week}
+          weekMatches={weekMatches}
+          roomId={roomId}
+          userId={userId}
+        />
       ))}
     </div>
+  )
+}
+
+function WeekSection({
+  week,
+  weekMatches,
+  roomId,
+  userId,
+}: {
+  week: number
+  weekMatches: MatchWithPrediction[]
+  roomId: number
+  userId: string
+}) {
+  const [isOpen, setIsOpen] = useState(true)
+
+  return (
+    <section>
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="mb-2 flex items-center justify-between w-full text-left text-sm font-semibold text-muted-foreground hover:text-foreground transition-colors py-1 rounded-lg outline-none"
+      >
+        <span className="flex items-center gap-2">
+          <CalendarDays className="h-4 w-4 text-primary" /> Jornada {week}
+        </span>
+        <span className="text-xs font-normal text-muted-foreground/80 flex items-center gap-1 select-none">
+          {weekMatches.length} {weekMatches.length === 1 ? "partido" : "partidos"}
+          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+        </span>
+      </button>
+
+      {isOpen && (
+        <div className="flex flex-col gap-3 animate-in fade-in slide-in-from-top-1 duration-200">
+          {weekMatches.map((m) => (
+            <MatchCard key={m.id} roomId={roomId} match={m} userId={userId} />
+          ))}
+        </div>
+      )}
+    </section>
   )
 }
 
