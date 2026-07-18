@@ -66,7 +66,7 @@ export async function getRoomData(roomId: number): Promise<RoomData> {
     .select()
     .from(match)
     .where(eq(match.roomId, roomId))
-    .orderBy(desc(match.week), asc(match.id))
+    .orderBy(desc(match.week), asc(match.startTime), asc(match.id))
 
   const myPredictions = await db
     .select()
