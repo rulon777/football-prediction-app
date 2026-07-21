@@ -67,11 +67,14 @@ export async function GET(request: Request) {
     const allRooms = await db.select().from(room)
     const allDbMatches = await db.select().from(match)
 
-    // 2. Hash map indexing: key = `${roomId}_${normalizedHomeTeam}_${normalizedAwayTeam}_${week}`
+    // 2. Hash map indexing
     const matchesMap = new Map<string, typeof allDbMatches[0]>()
     for (const m of allDbMatches) {
-      const key = `${m.roomId}_${getNormalizedTeamName(m.homeTeam)}_${getNormalizedTeamName(m.awayTeam)}_${m.week}`
-      matchesMap.set(key, m)
+      if (m.externalId) {
+        matchesMap.set(`${m.roomId}_ext_${m.externalId}`, m)
+      }
+      const keyTeams = `${m.roomId}_teams_${getNormalizedTeamName(m.homeTeam)}_${getNormalizedTeamName(m.awayTeam)}_${m.week}`
+      matchesMap.set(keyTeams, m)
     }
 
     const matchesToInsert: (typeof match.$inferInsert)[] = []
@@ -93,8 +96,9 @@ export async function GET(request: Request) {
         const scoreAway = apiMatch.score?.fullTime?.away ?? null
         const finished = status === "FINISHED"
 
-        const lookupKey = `${currentRoom.id}_${apiHomeClean}_${apiAwayClean}_${matchday}`
-        const existing = matchesMap.get(lookupKey)
+        const keyByExternalId = `${currentRoom.id}_ext_${apiMatch.id}`
+        const keyByTeams = `${currentRoom.id}_teams_${apiHomeClean}_${apiAwayClean}_${matchday}`
+        const existing = matchesMap.get(keyByExternalId) || matchesMap.get(keyByTeams)
 
         if (existing) {
           const existingStartTime = existing.startTime ? new Date(existing.startTime) : null
