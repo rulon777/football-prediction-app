@@ -38,10 +38,16 @@ export async function GET(request: Request) {
     return new NextResponse("No autorizado", { status: 401 })
   }
 
+  const apiKey = process.env.FOOTBALL_API_KEY
+  if (!apiKey) {
+    console.error("FOOTBALL_API_KEY no está configurada")
+    return NextResponse.json({ ok: false, error: "FOOTBALL_API_KEY no está configurada en el servidor" }, { status: 500 })
+  }
+
   try {
     const res = await fetch("https://api.football-data.org/v4/competitions/PD/matches", {
       headers: {
-        "X-Auth-Token": "084c2499fa647ac8ac0f657cff007f9",
+        "X-Auth-Token": apiKey,
       },
       next: { revalidate: 0 }, // do not cache the fetch
     })
