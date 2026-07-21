@@ -45,7 +45,9 @@ export type LeaderboardRow = {
   userName: string
   points: number
   clavadas: number
+  aciertos: number
   isAdmin: boolean
+  positionChange: "up" | "down" | "same"
 }
 
 export type RoomData = {
@@ -108,26 +110,83 @@ export async function getRoomData(roomId: number): Promise<RoomData> {
     }
   })
 
+  const weeks = Array.from(new Set(matches.map((m) => m.week))).sort((a, b) => b - a)
+
+  const matchWeekMap = new Map<number, number>()
+  for (const m of matches) {
+    matchWeekMap.set(m.id, m.week)
+  }
+
+  const maxWeek = weeks.length > 0 ? Math.max(...weeks) : 0
+
   const pointsByUser = new Map<string, number>()
   const clavadasByUser = new Map<string, number>()
+  const aciertosByUser = new Map<string, number>()
   for (const p of allPredictions) {
     pointsByUser.set(p.userId, (pointsByUser.get(p.userId) ?? 0) + p.points)
     if (p.points === 4) {
       clavadasByUser.set(p.userId, (clavadasByUser.get(p.userId) ?? 0) + 1)
+    } else if (p.points === 2) {
+      aciertosByUser.set(p.userId, (aciertosByUser.get(p.userId) ?? 0) + 1)
     }
   }
 
-  const leaderboard: LeaderboardRow[] = members
+  const currentLeaderboard = members
     .map((m) => ({
       userId: m.userId,
       userName: m.userName,
       points: pointsByUser.get(m.userId) ?? 0,
       clavadas: clavadasByUser.get(m.userId) ?? 0,
+      aciertos: aciertosByUser.get(m.userId) ?? 0,
       isAdmin: m.userId === r.adminId,
     }))
     .sort((a, b) => b.points - a.points || b.clavadas - a.clavadas || a.userName.localeCompare(b.userName))
 
-  const weeks = Array.from(new Set(matches.map((m) => m.week))).sort((a, b) => b - a)
+  let prevLeaderboard: typeof currentLeaderboard = []
+  const hasPrevWeek = weeks.length > 1
+  if (hasPrevWeek) {
+    const prevPointsByUser = new Map<string, number>()
+    const prevClavadasByUser = new Map<string, number>()
+    for (const p of allPredictions) {
+      const w = matchWeekMap.get(p.matchId) ?? 0
+      if (w < maxWeek) {
+        prevPointsByUser.set(p.userId, (prevPointsByUser.get(p.userId) ?? 0) + p.points)
+        if (p.points === 4) {
+          prevClavadasByUser.set(p.userId, (prevClavadasByUser.get(p.userId) ?? 0) + 1)
+        }
+      }
+    }
+    prevLeaderboard = members
+      .map((m) => ({
+        userId: m.userId,
+        userName: m.userName,
+        points: prevPointsByUser.get(m.userId) ?? 0,
+        clavadas: prevClavadasByUser.get(m.userId) ?? 0,
+        aciertos: 0,
+        isAdmin: m.userId === r.adminId,
+      }))
+      .sort((a, b) => b.points - a.points || b.clavadas - a.clavadas || a.userName.localeCompare(b.userName))
+  }
+
+  const leaderboard: LeaderboardRow[] = currentLeaderboard.map((user, currentIdx) => {
+    let positionChange: "up" | "down" | "same" = "same"
+    if (hasPrevWeek) {
+      const prevIdx = prevLeaderboard.findIndex((u) => u.userId === user.userId)
+      if (prevIdx !== -1) {
+        if (currentIdx < prevIdx) {
+          positionChange = "up"
+        } else if (currentIdx > prevIdx) {
+          positionChange = "down"
+        }
+      }
+    }
+    return {
+      ...user,
+      positionChange,
+    }
+  })
+
+
 
   return {
     id: r.id,
